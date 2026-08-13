@@ -1,0 +1,565 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Lenis smooth scroll — recommended base rules from the Lenis docs.
+   html.lenis-stopped is toggled when we deliberately pause scrolling
+   (e.g. a fullscreen modal); nothing in the app does that yet, but the
+   rule is harmless to have ready. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+/* Horizontal-scroll guard used to live here as `html, body { overflow-x:
+   hidden }` — moved to a wrapper around just the routed page content
+   (see App.jsx) instead. `overflow-x: hidden` directly on html/body is a
+   known WebKit/Safari gotcha for `position: sticky` elements specifically
+   (ANY ancestor with non-`visible` overflow silently breaks stickiness on
+   iOS) — moot now that the header is `position: fixed` instead, but the
+   guard itself still earns its keep against WhyDigivee's horizontal GSAP
+   scrub, so it stays scoped to the wrapper rather than html/body. */
+
+html.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+html.lenis-stopped {
+  overflow: hidden;
+}
+
+/* iOS Safari rubber-bands past the top/bottom of the page on overscroll —
+   that briefly exposes body's own background (paper) behind whatever
+   full-bleed pink page/overlay is on screen (Preloader, Sewa, Landing
+   hero, ...), which reads as a stray white/cream flash at the edge.
+   Blocking the bounce outright is simpler and more robust than trying to
+   color-match body per route for an animation that's gone within a
+   frame anyway. */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+/* Also from the Lenis docs, and the one rule that was actually missing
+   here: without it, a data-lenis-prevent element (WhyDigivee's mobile
+   horizontal row) can scroll-chain into the page's Lenis-driven scroll
+   once it hits its own start/end edge — the browser falls back to
+   trying to move the parent, fighting Lenis's own rAF-smoothed position
+   for a frame or two. That fight is what reads as a shake/jitter, and it
+   shows up on the *page's* vertical scroll even though the element
+   scrolls horizontally, because the chain is scroll-chaining in general,
+   not axis-specific. `overscroll-behavior: contain` stops the chain at
+   the element's own boundary. */
+[data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+/* Site is light-only by design. Without this, Chrome/Safari repaint native
+   controls (input, select, the date-picker calendar) using the OS/browser
+   dark-mode palette whenever the visitor's system is set to dark — even
+   though every custom color here still comes from our light "paper/ink"
+   theme. That mismatch is what produces the black-background-black-text
+   inputs: a dark-mode-black native field with our near-black ink text
+   colour on top. This line pins native form-control rendering to light so
+   it always matches the rest of the page. */
+:root {
+  color-scheme: light;
+}
+
+/* iOS Safari/Chrome auto-zooms the whole page in when a focused input,
+   select, or textarea renders under 16px — several admin fields here
+   use text-sm/text-xs/text-[10px] — and it doesn't reliably zoom back
+   out on blur. Not app state, a WebKit quirk; flooring every field at
+   16px stops the trigger at the source instead of chasing it field by
+   field. Scoped to touch devices so desktop's compact admin text is
+   untouched (this bug is touch/WebKit-only). */
+@media (pointer: coarse) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+html {
+  scrollbar-width: none;
+  background: #F4EAE1;
+}
+html::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  background: #F4EAE1;
+  color: #3A4032;
+  font-family: "Cabinet Grotesk", sans-serif;
+}
+
+/* Status-bar bleed, every page — Preloader/PageLoader already get this
+   for free by being `fixed inset-0` (Safari lets fixed, full-viewport
+   elements paint under the notch/status bar with no extra work). Normal
+   in-flow page content doesn't get that for free, so it was showing
+   body's white through the reserved status-bar area instead of the
+   page's own pink. Fixing it once here beats padding every page/route. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: env(safe-area-inset-top);
+  background: var(--status-bar-color, #FF8DA1);
+  z-index: 40;
+  pointer-events: none;
+}
+
+/* small tracked label — magazine rubric/kicker/eyebrow */
+.kicker {
+  font-family: "Cabinet Grotesk", sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+}
+
+/* single hairline rule — replaces the old heavy double-border masthead rule */
+.rule-hair {
+  border-bottom: 1px solid rgba(58, 64, 50, 0.12);
+}
+
+/* quiet hairline-bordered surface block — flat, no offset shadow.
+   background sits one step lighter than the page so cards read as a
+   distinct surface against the dark base. */
+.frame,
+.edit-frame {
+  position: relative;
+  border: 1px solid rgba(58, 64, 50, 0.14);
+  background: #F4EAE1;
+}
+.edit-frame--on-pink {
+  background: transparent;
+  border-color: rgba(58, 64, 50, 0.3);
+}
+
+/* legacy alias kept for Login/Profile/Admin — same single hairline rule,
+   now drawn to match the flat dark surface instead of the old double rule. */
+.rule-double {
+  border-bottom: 1px solid rgba(58, 64, 50, 0.12);
+}
+
+/* Admin dashboard opts back into real corner radii for its buttons, tabs,
+   and actions — tailwind.config.js flattens every rounded-* utility to 0px
+   site-wide for the editorial marketing pages, but the admin tool already
+   authored its buttons/tabs as rounded-full/rounded-lg throughout (see
+   pages/Admin). Rather than touch the global config (which the public site
+   still depends on) or rewrite every one of those classnames, this scopes
+   just those two sizes back to their real values under `.admin-scope`
+   (set on Admin's own root, see pages/Admin/index.jsx) — two classes beats
+   Tailwind's single-class utility on specificity, so it wins without a
+   source-order fight, and any new admin markup gets real rounding for
+   free just by living inside the scope. */
+.admin-scope .rounded-full {
+  border-radius: 9999px;
+}
+.admin-scope .rounded-lg {
+  border-radius: 0.5rem;
+}
+
+/* marquee ticker — slow, unhurried pace */
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 32s linear infinite;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* --- quiet, understated interaction states --- */
+/* small, calm press feedback — no overshoot, no bounce */
+.press-btn {
+  transition:
+    transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 240ms ease-out,
+    color 240ms ease-out,
+    border-color 240ms ease-out;
+  will-change: transform;
+}
+.press-btn:active {
+  transition: transform 120ms ease-out;
+  transform: scale(0.98);
+}
+
+/* WA floating button's own transition — deliberately after .press-btn so
+   it wins: .press-btn's shorthand doesn't include opacity, which made the
+   opacity-0/translate-x-full hide snap instantly instead of sliding. */
+.wa-fab {
+  transition:
+    opacity 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* editorial outline button (elementis.co-style) — sharp corners (no
+   radius, ever), border-only at rest. A solid panel sweeps in from the
+   left on hover to fill it, and the same filled state shows immediately
+   on :active/:focus-visible too, so touch users — who never trigger
+   :hover — still get "press = filled" feedback. The panel is a separate
+   ::before layer rather than a background-color transition so the
+   colour change reads as a deliberate wipe, not a fade. Pair with
+   .press-btn for the shared press-scale feedback. */
+.btn-outline {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid transparent;
+  transition: color 550ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-outline::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-outline:hover::before,
+.btn-outline:focus-visible::before,
+.btn-outline:active::before {
+  transform: scaleX(1);
+}
+
+.btn-outline--pink {
+  border-color: #FF8DA1;
+  color: #FF8DA1;
+}
+.btn-outline--pink::before {
+  background: #FF8DA1;
+}
+.btn-outline--pink:hover,
+.btn-outline--pink:focus-visible,
+.btn-outline--pink:active {
+  color: #FFFFFF;
+}
+
+.btn-outline--ink {
+  border-color: rgba(58, 64, 50, 0.35);
+  color: #3A4032;
+}
+.btn-outline--ink::before {
+  background: #3A4032;
+}
+.btn-outline--ink:hover,
+.btn-outline--ink:focus-visible,
+.btn-outline--ink:active {
+  color: #FFFFFF;
+  border-color: #3A4032;
+}
+
+.btn-outline--paper {
+  border-color: #F4EAE1;
+  color: #F4EAE1;
+}
+.btn-outline--paper::before {
+  background: #F4EAE1;
+}
+.btn-outline--paper:hover,
+.btn-outline--paper:focus-visible,
+.btn-outline--paper:active {
+  color: #3A4032;
+}
+
+/* card hover: a quiet lift with a soft dark shadow, nothing brutalist */
+.surface-hover,
+.sticker-hover {
+  transition:
+    transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 320ms ease-out,
+    box-shadow 320ms ease-out;
+}
+.surface-hover:hover,
+.sticker-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(58, 64, 50, 0.35);
+  box-shadow: 0 30px 60px -30px rgba(58, 64, 50, 0.22);
+}
+
+/* row hover for editorial list layouts (price list, promo list) */
+.row-hover {
+  transition:
+    background 280ms ease-out,
+    padding-left 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.row-hover:hover {
+  background: rgba(58, 64, 50, 0.04);
+  padding-left: 0.75rem;
+}
+
+/* slow, quiet idle drift for decorative icons */
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+.floaty {
+  animation: floaty 6s ease-in-out infinite;
+}
+
+/* small icon hover — a soft nudge, not a wiggle */
+.wiggle-icon {
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+}
+.wiggle-icon:hover {
+  transform: rotate(-2deg) scale(1.05);
+}
+
+/* Popup modal overlay (QR scan, edit dialogs, confirm dialog) — centers a
+   capped-size card with real headroom from the status bar/notch, instead
+   of an edge-to-edge `fixed inset-0` take-over. That old pattern put the
+   close button right where the status bar sits, hard to tap accurately.
+   Login/Signup/Sewa are real full-page sections, not popups — still their
+   own `min-h-[100dvh]`, untouched. */
+.modal-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: max(1rem, calc(env(safe-area-inset-top) + 0.75rem)) 1rem max(1rem, env(safe-area-inset-bottom));
+}
+
+/* quiet entrance: fade and settle, no scale punch */
+@keyframes pop-in {
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.pop-in {
+  animation: pop-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* scroll cue at bottom of hero */
+@keyframes scroll-cue {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+}
+.scroll-cue-line {
+  animation: scroll-cue 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+  .floaty {
+    animation: none;
+  }
+  .pop-in {
+    animation: none;
+  }
+  .scroll-cue-line {
+    animation: none;
+  }
+  .press-btn,
+  .surface-hover,
+  .row-hover,
+  .wiggle-icon {
+    transition: none;
+  }
+  .btn-outline,
+  .btn-outline::before {
+    transition: none;
+  }
+}
+
+/* ============================================================
+   Editorial photography — asymmetric magazine-style image blocks
+   ============================================================ */
+
+/* wrapper: sharp corners (no radius — editorial, not app-y), a hairline
+   frame lifted a touch off the photo, and a slow Ken Burns-style zoom on
+   hover so images feel alive without ever feeling like a UI control */
+.editorial-img {
+  position: relative;
+  overflow: hidden;
+  background: #A3B19B;
+}
+.editorial-img::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #3A4032;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  transition: opacity 500ms ease-out;
+}
+.editorial-img:hover::after {
+  opacity: 0;
+}
+.editorial-img img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 1400ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: scale(1.01);
+}
+.editorial-img:hover img {
+  transform: scale(1.06);
+}
+
+/* hide the OS scrollbar on touch-swipe galleries (WhyDigivee's mobile
+   horizontal showcase) — scroll still works fine via touch/trackpad, it
+   just doesn't clutter the edge-to-edge panels with a visible bar.
+   touch-action: pan-x is the actual bug fix here, not the scrollbar
+   hiding: without it, a finger that lands on this row while the *page*
+   is being scrolled vertically leaves the browser to guess whether the
+   gesture belongs to this horizontal snap-carousel or to the page's
+   vertical (Lenis-smoothed) scroll. On a diagonal-ish swipe it can start
+   answering "both", and the row's own snap points fight the page scroll
+   frame to frame — that's the shaky/jittery feel. Locking this element
+   to the horizontal axis only removes the ambiguity: vertical gestures
+   here are handed straight to page scroll, untouched. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  touch-action: pan-x;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* iOS-style wheel picker column (HourMinuteSelect) — same scrollbar-hide
+   idea as .no-scrollbar above, but touch-action: pan-y (not pan-x) since
+   this one scrolls vertically, plus the top/bottom fade mask that's the
+   actual signature of an iOS wheel. -webkit-mask-image is needed
+   alongside the unprefixed one for Safari. */
+.wheel-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  touch-action: pan-y;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+}
+.wheel-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* small caption chip pinned to a photo corner — kicker-style */
+.editorial-caption {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  background: #F4EAE1;
+  color: #3A4032;
+  padding: 0.6rem 1rem;
+}
+
+/* ============================================================
+   Navbar — minimal text links + hamburger / full-screen overlay
+   ============================================================ */
+
+.nav-link {
+  position: relative;
+  display: inline-block;
+}
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -2px;
+  height: 1px;
+  background: currentColor;
+  transition: right 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.nav-link:hover::after {
+  right: 0;
+}
+
+/* hamburger → close morph, three even bars — hairline weight (1px),
+   matching .rule-hair elsewhere in the site */
+.burger-line {
+  display: block;
+  height: 1px;
+  background: currentColor;
+  transform: translateY(0) rotate(0deg);
+  will-change: transform;
+  transition:
+    transform 380ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 200ms ease-out,
+    width 380ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.burger-line--mid {
+  opacity: 1;
+}
+/* translateY = line height + gap (1px + 8px), so the top/bottom bars land
+   exactly on the middle bar's center when they rotate into the X */
+.burger--open .burger-line--top {
+  transform: translateY(9px) rotate(45deg);
+}
+.burger--open .burger-line--mid {
+  opacity: 0;
+}
+.burger--open .burger-line--bottom {
+  transform: translateY(-9px) rotate(-45deg);
+}
+
+/* full-screen editorial menu overlay — matches the site's light paper
+   theme (was a dark #24332C panel, which read as an unintended dark-mode
+   flip against the rest of the light UI). */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: #F4EAE1;
+  color: #3A4032;
+  overflow-y: auto;
+}
+.menu-link {
+  display: block;
+  color: inherit;
+  transition:
+    color 300ms ease-out,
+    transform 380ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.menu-link:hover,
+.menu-link:focus-visible {
+  color: #FF8DA1;
+  transform: translateX(0.5rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editorial-img img {
+    transition: none;
+  }
+  .burger-line {
+    transition: none;
+  }
+  .menu-link {
+    transition: none;
+  }
+  .wa-fab {
+    transition: none;
+  }
+}

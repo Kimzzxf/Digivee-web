@@ -1,0 +1,64 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# Not secrets (public WA/IG contact info shown on the site itself) — set
+# here instead of Netlify's dashboard so they're versioned and just work
+# on every deploy. .env only covers local `npm run dev`, Netlify's build
+# container never reads it.
+[build.environment]
+  VITE_ADMIN_WA_NUMBER = "6281111836339"
+  VITE_INSTAGRAM_URL = "https://instagram.com/digivee_krw"
+  VITE_CLOUDINARY_CLOUD_NAME = "yhrp0zzn"
+  VITE_CLOUDINARY_UPLOAD_PRESET = "Testimoni_Digivee"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Baseline hardening headers, applied to every response (pages + /api/*
+# JSON alike). No CSP here on purpose — this app pulls fonts/scripts/images
+# from several origins (GSAP, Lenis, external images) that haven't been
+# inventoried, and a wrong CSP silently breaks the whole site. Add one once
+# that inventory exists.
+#
+# Cache-Control: no-cache here is the actual fix for "update baru ngga
+# masuk yang belum di-refresh / PWA add-to-homescreen" — nothing in this
+# file set any cache header before, so index.html AND sw.js were left to
+# the browser's own heuristic caching. sw.js/index.html: an update relies
+# on the browser re-fetching them to notice a byte difference (src/sw.js
+# already does skipWaiting+clients.claim once that happens) — if sw.js
+# itself gets served stale from cache, that fetch never happens and the
+# old SW/precache serves forever, even after a manual refresh. no-cache
+# (not no-store) still lets it cache, just forces a revalidation each load
+# so a new deploy is picked up on the very next load — normal tab or PWA.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "microphone=(), geolocation=()"
+    Cache-Control = "no-cache"
+
+# Reminder balik: cek tiap 15 menit, kirim sekali per transaksi 3 jam
+# sebelum jam kembali (lihat netlify/functions/reminder-check.js).
+[functions."reminder-check"]
+  schedule = "*/15 * * * *"
+
+# Backup harian: dump Customer + Transaction, kirim ke Telegram admin
+# (lihat netlify/functions/db-backup.js). Jam 2 pagi WIB (19:00 UTC),
+# di luar jam operasional.
+[functions."db-backup"]
+  schedule = "0 19 * * *"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# SPA fallback so client-side routes (e.g. /profile, /admin) work on refresh
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

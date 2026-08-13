@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /profile
+Disallow: /sewa
+
+Sitemap: https://digivee.id/sitemap.xml
