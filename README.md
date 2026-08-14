@@ -10,8 +10,6 @@ Website Digivee: landing page, price list, login WA+PIN, form sewa online, kartu
 - Database: MongoDB Atlas, cluster M0 (free, 512MB), lewat Mongoose
 - QR: `qrcode.react`
 
-Backend-nya wajib ada karena connection string MongoDB gak boleh nyampe browser (beda kasus sama dulu pas masih Supabase, connect langsung dari client). Jadi semua query lewat function, browser cuma manggil `/api/...`.
-
 ## 1. Setup MongoDB Atlas
 
 1. Daftar di [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas/register), gratis.
